@@ -55,10 +55,14 @@ class RenderPasses extends WebGlApp
     renderpass_pixel_filter( gl, canvas_width, canvas_height )
     {
         // TODO First rendering pass
-        // ...
+        this.fbo.resize(gl, canvas_width, canvas_height)
+        this.fbo.bindFramebuffer(gl)
+        this.renderpass_normal(gl, canvas_width, canvas_height, [ 'light' ])
+        this.fbo.unbindFramebuffer(gl)
+
 
         // TODO Second rendering pass
-        // ...
+        this.quad.render(gl, this.filter_mode, this.fbo.getColorTexture(), this.fbo.getDepthTexture())
 
         // render only lights
         this.scene.render( gl, [ 'model' ] )
@@ -75,8 +79,6 @@ class RenderPasses extends WebGlApp
 
         // TODO first rendering pass
         {
-            // TODO add missing steps ...
-
             let shadow_camera = current_light.getCamera( scale )
             shadow_v = shadow_camera.getViewMatrix()
             shadow_p = shadow_camera.getProjectionMatrix()
@@ -85,18 +87,30 @@ class RenderPasses extends WebGlApp
 
             {
                 // TODO configure shader parameters
+                // Include u_eye to avoid specular reflection in preview
+                shader.use( )
+                shader.setUniform3f('u_eye', shadow_camera.getEye())
+                shader.setUniform4x4f('u_v', shadow_v)
+                shader.setUniform4x4f('u_p', shadow_p)
+                shader.unuse( )
             }
 
+            fbo.resize(gl, fbo.width, fbo.height)
+            fbo.bindFramebuffer(gl)
             this.renderpass_normal(gl, fbo.width, fbo.height, [ 'light' ])
+            fbo.unbindFramebuffer(gl)
 
             {
                 // TODO restore shader parameters
+                shader.use( )
+                shader.setUniform3f('u_eye', this.camera.getEye())
+                shader.setUniform4x4f('u_v', this.camera.getViewMatrix())
+                shader.setUniform4x4f('u_p', this.camera.getProjectionMatrix())
+                shader.unuse( )
             }
-        
-            // TODO add missing steps ...
         }
-
-        return // TODO compute the output projection matrix
+        // Return p * v for shadows
+        return mat4.multiply(mat4.create(), shadow_p, shadow_v)
     }
 
     renderpass_shadowmap( gl, canvas_width, canvas_height )
@@ -113,22 +127,38 @@ class RenderPasses extends WebGlApp
                 this.do_depth_pass( gl, this.fbo_point, this.first_point_light )
         }
 
+        this.setViewport( gl, canvas_width, canvas_height )
+        this.clearCanvas( gl )  
+
         // TODO final rendering pass
         {
-            // TODO add missing steps ...  
-
             this.scene.setShader(gl, this.shadow_shader)
             {
                 let shader = this.shadow_shader
                 shader.use()
 
                 // TODO First, restore camera position
+                shader.setUniform3f('u_eye', this.camera.getEye())
+                shader.setUniform4x4f('u_v', this.camera.getViewMatrix())
+                shader.setUniform4x4f('u_p', this.camera.getProjectionMatrix())
 
                 // TODO Second, pass-in light-camera matrices
+                shader.setUniform4x4f('u_shadow_pv_point', u_shadow_pv_point)
+                shader.setUniform4x4f('u_shadow_pv_directional', u_shadow_pv_directional)
 
-                // TODO Activate the depth texture for the directional light
+                // Use textures 3 and 4 since 0-2 are already used
 
                 // TODO Activate the depth texture for the point light
+                this.fbo = this.fbo_point
+                shader.setUniform1i('u_shadow_tex_point', 4)
+                gl.activeTexture(gl.TEXTURE4)
+                gl.bindTexture(gl.TEXTURE_2D, this.fbo.getDepthTexture())
+
+                // TODO Activate the depth texture for the directional light
+                this.fbo = this.fbo_directional
+                shader.setUniform1i('u_shadow_tex_directional', 3)
+                gl.activeTexture(gl.TEXTURE3)
+                gl.bindTexture(gl.TEXTURE_2D, this.fbo.getDepthTexture())
 
                 shader.unuse()
             }
@@ -139,6 +169,12 @@ class RenderPasses extends WebGlApp
             // Finally render the annotation of lights
             if (this.first_directional_light) this.first_directional_light.render( gl )
             if (this.first_point_light) this.first_point_light.render( gl )
+
+            // Unbind textures
+            gl.activeTexture(gl.TEXTURE3)
+            gl.bindTexture(gl.TEXTURE_2D, null)
+            gl.activeTexture(gl.TEXTURE4)
+            gl.bindTexture(gl.TEXTURE_2D, null)
         }
     }
 }

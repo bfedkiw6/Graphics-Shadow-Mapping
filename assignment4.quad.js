@@ -43,7 +43,8 @@ class Quad extends ObjectStatic {
 
         // Other parameters
         this.shader.setUniform1f('depth_scaling', 0.2)
-        this.shader.setUniform1f('near', 0.01)
+        // Changed near to 0.0025 to resemble result video
+        this.shader.setUniform1f('near', 0.0025)
         this.shader.setUniform1f('far',  100.0)
 
         // Set up texture units

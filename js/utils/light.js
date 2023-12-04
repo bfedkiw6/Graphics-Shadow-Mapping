@@ -163,8 +163,8 @@ class DirectionalLight extends Light {
         // The radius of the scene
         let radius = vec3.length(scale)
 
-        let dir = vec3.create() // TODO compute the light direction
-        let eye = vec3.create() // TODO compute the light position
+        let dir = vec3.transformQuat(vec3.create(), [0.0,-1.0,0.0], mat4.getRotation(quat4.create(), this.model_matrix))  // TODO compute the light direction
+        let eye = mat4.getTranslation(vec3.create(),this.model_matrix) // TODO compute the light position
         let center = vec3.add(vec3.create(), eye, dir)
         let cam = new OrthoCamera(eye, center, -radius, radius, -radius, radius); // create a camera object for the light
         return cam
@@ -213,8 +213,8 @@ class PointLight extends Light {
 
     getCamera( scale )
     {
-        let eye = vec3.create() // TODO compute the light position
-        let center = vec3.create()  // TODO compute the focus position, we always position the object at the origin
+        let eye = mat4.getTranslation(vec3.create(),this.model_matrix) // TODO compute the light position
+        let center = [0.0, 0.0, 0.0]  // TODO compute the focus position, we always position the object at the origin
 
         // estimate the fovy based on the scene scale
         let v1 = vec3.normalize(vec3.create(), vec3.sub(vec3.create(), scale,  eye))
